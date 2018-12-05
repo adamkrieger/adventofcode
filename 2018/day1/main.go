@@ -7,9 +7,29 @@ import (
 	"strconv"
 )
 
+var (
+	freqMap            = make(map[int]interface{})
+	firstDupeFreq      = 0
+	firstDupeFreqFound = false
+)
+
 func main() {
 	path := os.Args[1]
 
+	total := 0
+
+	for {
+		total = processFile(total, path)
+		if firstDupeFreqFound {
+			break
+		}
+	}
+
+	log.Println("Total: ", total)
+	log.Println("FirstDupe: ", firstDupeFreq)
+}
+
+func processFile(total int, path string) (newTotal int) {
 	fileHndl, err := os.Open(path)
 
 	if err != nil {
@@ -19,7 +39,6 @@ func main() {
 	rdr := bufio.NewReader(fileHndl)
 
 	currentLine := []byte{}
-	total := 0
 
 	for {
 		partial, isPrefix, err := rdr.ReadLine()
@@ -43,10 +62,20 @@ func main() {
 			} else {
 				currentLine = []byte{}
 				total += currentVal
+
+				if _, found := freqMap[total]; !found {
+					freqMap[total] = nil
+				} else {
+					if !firstDupeFreqFound {
+						firstDupeFreqFound = true
+						firstDupeFreq = total
+					}
+				}
 			}
 		}
 
 	}
 
-	log.Println(total)
+	fileHndl.Close()
+	return total
 }
