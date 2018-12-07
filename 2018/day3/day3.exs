@@ -1,4 +1,4 @@
-defmodule Day3 do
+defmodule Day3Parse do
 
     def splitID(line) do 
         String.split(line, "@", trim: true)
@@ -19,12 +19,23 @@ defmodule Day3 do
             } end).()
     end
 
+    def trimParseIntOrRaise(strIn) do
+        strIn 
+        |> String.trim
+        |> Integer.parse
+        |> (fn 
+                {v, _} -> v
+                _ -> raise "bad parse - check input"
+            end).()
+    end
+
     def toCoords(coords) do
         String.split(coords, ",", trim: true)
         |> (fn parts -> 
             %{
-                :x => String.trim(Enum.at(parts, 0)), 
-                :y => String.trim(Enum.at(parts, 1))
+                :x => Enum.at(parts, 0) |> trimParseIntOrRaise, 
+                :y => Enum.at(parts, 1) |> trimParseIntOrRaise
+                         
             } end).()
     end
 
@@ -32,39 +43,66 @@ defmodule Day3 do
         String.split(area, "x", trim: true)
         |> (fn parts ->
             %{
-                :xlen => String.trim(Enum.at(parts, 0)),
-                :ylen => String.trim(Enum.at(parts, 1))
+                :xlen => Enum.at(parts, 0) |> trimParseIntOrRaise,
+                :ylen => Enum.at(parts, 1) |> trimParseIntOrRaise
             } end).()
     end
 
-    def markFabric(next, fabric) do
-        #IO.puts(next, fabric)
-        # fabric[{next(:xOff),next(:yOff)}] = 1
-        new = fabric
-        |> Map.update({next.coords.x, next.coords.y}, "once", fn _ -> "twice" end)
+end
 
-        # new
-        # |> Map.keys
-        # |> Enum.join(",")
-        # |> IO.puts()
+defmodule Day3 do
+
+    def expandClaim(claim) do
+        #printIDOfClaim(claim,"expandClaim")
+
+        claim
+        |> expandXWithColumns
+        |> Enum.map(fn {rowStart,restOfClaim} -> {rowStart, restOfClaim.coords.y, restOfClaim.area.ylen} end)
+        |> Enum.flat_map(&expandColumnsWithRows/1)
+        |> List.flatten
+    end
+
+    def expandXWithColumns(claim) do
+        #printIDOfClaim(claim, "expandRange")
+
+        Range.new(claim.coords.x, (claim.coords.x + claim.area.xlen - 1))
+        |> Enum.map(fn row -> {row, claim} end)
+    end
+
+    def expandColumnsWithRows({x,y,ylen}) do 
+        [tackOnX(Range.new(y, (y + ylen - 1)), x)]
+    end
+
+    def tackOnX(rangeIn, xVal) do
+        #IO.puts rangeIn
+
+        rangeIn
+        |> Enum.map(fn eachY -> {xVal,eachY} end)
+    end
+
+    def markEachSquare(next, fabric) do
+        Map.update(fabric, next, "once", fn _ -> "twice" end)
+    end
+
+    def markFabric(next, fabric) do
+        new = next
+        |> Enum.reduce(fabric, &markEachSquare/2)
 
         new
     end
 
-    def outputSomething(deets) do
-        IO.puts("wut")
-        IO.puts(deets)
+    def printIDOfClaim(claim, tag) do
+        IO.puts tag <> ": " <> claim.id <> " - " <> to_string(claim.coords.x) <> " - " <> to_string(claim.area.ylen)
+        claim
     end
 end
 
-result = File.stream!("input/sample.txt")
-|> Stream.map(&Day3.splitID/1)
-|> Stream.map(&Day3.splitRest/1)
+result = File.stream!("input/day3.input")
+|> Stream.map(&Day3Parse.splitID/1)
+|> Stream.map(&Day3Parse.splitRest/1)
+#|> Stream.map(fn claim -> Day3.printIDOfClaim(claim, "stream") end)
+|> Stream.map(&Day3.expandClaim/1)
 |> Enum.reduce(%{}, &Day3.markFabric/2)
-|> Enum.filter(fn {_, v} -> v != "twice" end)
-|> Map.new
-|> Map.keys()
-|> Enum.map(fn {x,y} -> IO.puts(x <> y) end)
-|> Stream.run
-
-IO.puts(result)
+|> Enum.filter(fn {_, v} -> v == "twice" end)
+|> Enum.count
+|> (fn len -> IO.puts(to_string(len)) end).()
