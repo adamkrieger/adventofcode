@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-var(
-	twoMatchTotal = 0
+var (
+	twoMatchTotal   = 0
 	threeMatchTotal = 0
 )
 
@@ -52,6 +52,8 @@ type fileReader struct {
 func main() {
 	fileRdr := openFile(os.Args[1])
 
+	prevLines := []string{}
+
 	for {
 		line, err := fileRdr.line()
 
@@ -71,10 +73,22 @@ func main() {
 		if threeMatch {
 			threeMatchTotal++
 		}
+
+		compareAgainstPrevious(prevLines, line)
+
+		prevLines = append(prevLines, line)
 	}
 
 	checkSum := calcChecksum(twoMatchTotal, threeMatchTotal)
 	log.Println(checkSum)
+}
+
+func compareAgainstPrevious(prevLines []string, currentLine string) {
+	for _, line := range prevLines {
+		if match, isMatch := MatchExactlyOne(currentLine, line); isMatch {
+			log.Println("found: ", match)
+		}
+	}
 }
 
 func openFile(path string) *fileReader {
@@ -87,7 +101,7 @@ func openFile(path string) *fileReader {
 	rdr := bufio.NewReader(fileHndl)
 
 	return &fileReader{
-		rdr:rdr,
+		rdr: rdr,
 	}
 }
 
@@ -112,4 +126,23 @@ func (fileRdr *fileReader) line() (line string, err error) {
 		}
 
 	}
+}
+
+func MatchExactlyOne(l string, r string) (matches string, isMatch bool) {
+	nonMatches := 0
+	matchesArr := []byte{}
+
+	for i := 0; i < len(l); i++ {
+		if l[i] != r[i] {
+			nonMatches++
+		} else {
+			matchesArr = append(matchesArr, l[i])
+		}
+	}
+
+	if nonMatches == 1 {
+		isMatch = true
+	}
+
+	return string(matchesArr), isMatch
 }
